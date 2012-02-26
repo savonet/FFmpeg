@@ -2463,7 +2463,7 @@ static av_cold int mlp_encode_close(AVCodecContext *avctx)
     return 0;
 }
 
-AVCodec mlp_encoder = {
+AVCodec ff_mlp_encoder = {
     .name           = "mlp",
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = CODEC_ID_MLP,
