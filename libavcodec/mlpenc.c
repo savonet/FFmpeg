@@ -125,6 +125,7 @@ typedef struct {
     int32_t        *last_frame;             ///< Pointer to last frame with data to encode.
 
     int32_t        *lpc_sample_buffer;
+    LPCContext      lpc_ctx;
 
     unsigned int    major_number_of_frames;
     unsigned int    next_major_number_of_frames;
@@ -643,12 +644,7 @@ static av_cold int mlp_encode_init(AVCodecContext *avctx)
 
     size = sizeof(int32_t) * avctx->frame_size * ctx->max_restart_interval;
 
-    ctx->lpc_sample_buffer = av_malloc(size);
-    if (!ctx->lpc_sample_buffer) {
-        av_log(avctx, AV_LOG_ERROR,
-               "Not enough memory for buffering samples.\n");
-        return -1;
-    }
+    ret = ff_lpc_init(&s->lpc_ctx, size, 0, FF_LPC_TYPE_LEVINSON);
 
     size = sizeof(int32_t)
          * ctx->one_sample_buffer_size * ctx->max_restart_interval;
@@ -1512,9 +1508,9 @@ static void set_filter_params(MLPEncodeContext *ctx,
             sample_buffer += ctx->num_channels;
         }
 
-        order = ff_lpc_calc_coefs(&ctx->dsp, ctx->lpc_sample_buffer, ctx->number_of_samples,
+        order = ff_lpc_calc_coefs(&s->lpc_ctx, ctx->lpc_sample_buffer, ctx->number_of_samples,
                                   MLP_MIN_LPC_ORDER, max_order, 11,
-                                  coefs, shift, 1,
+                                  coefs, shift, 1, 1,
                                   ORDER_METHOD_EST, MLP_MIN_LPC_SHIFT, MLP_MAX_LPC_SHIFT, MLP_MIN_LPC_SHIFT);
 
         fp->order = order;
@@ -2454,7 +2450,7 @@ static av_cold int mlp_encode_close(AVCodecContext *avctx)
     av_freep(&ctx->lossless_check_data);
     av_freep(&ctx->major_scratch_buffer);
     av_freep(&ctx->major_inout_buffer);
-    av_freep(&ctx->lpc_sample_buffer);
+    ff_lpc_end(&s->lpc_ctx);
     av_freep(&ctx->decoding_params);
     av_freep(&ctx->channel_params);
     av_freep(&avctx->coded_frame);
