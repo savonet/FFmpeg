@@ -1932,6 +1932,7 @@ static int apply_filter(MLPEncodeContext *ctx, unsigned int channel)
     }
 
     for (i = 8; i < number_of_samples; i++) {
+        ChannelParams *cp = &ctx->cur_channel_params[channel];
         int32_t sample = *sample_buffer;
         unsigned int order;
         int64_t accum = 0;
@@ -1940,7 +1941,7 @@ static int apply_filter(MLPEncodeContext *ctx, unsigned int channel)
         for (filter = 0; filter < NUM_FILTERS; filter++)
             for (order = 0; order < fp[filter]->order; order++)
                 accum += (int64_t)filter_state_buffer[filter][i - 1 - order] *
-                         fp[filter]->coeff[order];
+                         cp->coeff[filter][order];
 
         accum  >>= filter_shift;
         residual = sample - (accum & mask);
