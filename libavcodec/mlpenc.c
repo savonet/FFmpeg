@@ -1446,7 +1446,7 @@ static void determine_quant_step_size(MLPEncodeContext *ctx)
  *  coefficients, and if it's possible to right-shift their values without
  *  losing any precision.
  */
-static void code_filter_coeffs(MLPEncodeContext *ctx, FilterParams *fp)
+static void code_filter_coeffs(MLPEncodeContext *ctx, FilterParams *fp, unsigned int channel, unsigned int filter)
 {
     int min = INT_MAX, max = INT_MIN;
     int bits, shift;
@@ -1454,7 +1454,8 @@ static void code_filter_coeffs(MLPEncodeContext *ctx, FilterParams *fp)
     int order;
 
     for (order = 0; order < fp->order; order++) {
-        int coeff = fp->coeff[order];
+        ChannelParams *cp = &ctx->cur_channel_params[channel];
+        int coeff = cp->coeff[filter][order];
 
         if (coeff < min)
             min = coeff;
@@ -1516,7 +1517,7 @@ static void set_filter_params(MLPEncodeContext *ctx,
         for (i = 0; i < order; i++)
             cp->coeff[filter][i] = coefs[order-1][i];
 
-        code_filter_coeffs(ctx, fp);
+        code_filter_coeffs(ctx, fp, channel, filter);
     }
 }
 
