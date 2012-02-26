@@ -265,21 +265,26 @@ static ChannelInformation ff_mlp_ch_info[21] = {
 /** Compares two FilterParams structures and returns 1 if anything has
  *  changed. Returns 0 if they are both equal.
  */
-static int compare_filter_params(FilterParams *prev, FilterParams *fp)
+static int compare_filter_params(MLPEncodeContext *ctx,
+                                 unsigned int ch, unsigned int filter)
 {
+    ChannelParams *prev_cp = &ctx->prev_channel_params[ch];
+    ChannelParams *cp = &ctx->cur_channel_params[ch];
+    FilterParams *prev_fp = &prev_cp->filter_params[filter];
+    FilterParams *fp = &cp->filter_params[filter];
     int i;
 
-    if (prev->order != fp->order)
+    if (prev_fp->order != fp->order)
         return 1;
 
-    if (!prev->order)
+    if (!prev_fp->order)
         return 0;
 
-    if (prev->shift != fp->shift)
+    if (prev_fp->shift != fp->shift)
         return 1;
 
     for (i = 0; i < fp->order; i++)
-        if (prev->coeff[i] != fp->coeff[i])
+        if (prev_cp->coeff[filter][i] != cp->coeff[filter][i])
             return 1;
 
     return 0;
@@ -353,14 +358,10 @@ static int compare_decoding_params(MLPEncodeContext *ctx)
         ChannelParams *prev_cp = &ctx->prev_channel_params[ch];
         ChannelParams *cp = &ctx->cur_channel_params[ch];
 
-        if (!(retval & PARAM_FIR) &&
-            compare_filter_params(&prev_cp->filter_params[FIR],
-                                  &     cp->filter_params[FIR]))
+        if (!(retval & PARAM_FIR) && compare_filter_params(ctx, ch, FIR))
             retval |= PARAM_FIR;
 
-        if (!(retval & PARAM_IIR) &&
-            compare_filter_params(&prev_cp->filter_params[IIR],
-                                  &     cp->filter_params[IIR]))
+        if (!(retval & PARAM_IIR) && compare_filter_params(ctx, ch, IIR))
             retval |= PARAM_IIR;
 
         if (prev_cp->huff_offset != cp->huff_offset)
