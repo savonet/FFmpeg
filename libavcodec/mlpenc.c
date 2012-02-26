@@ -732,7 +732,7 @@ static av_cold int mlp_encode_init(AVCodecContext *avctx)
     clear_channel_params(ctx, restart_channel_params);
     clear_decoding_params(ctx, restart_decoding_params);
 
-    dsputil_init(&ctx->dsp, avctx);
+    ff_dsputil_init(&ctx->dsp, avctx);
 
     return 0;
 }
