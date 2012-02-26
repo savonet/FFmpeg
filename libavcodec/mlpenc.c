@@ -977,7 +977,8 @@ static void write_matrix_params(MLPEncodeContext *ctx, PutBitContext *pb)
 static void write_filter_params(MLPEncodeContext *ctx, PutBitContext *pb,
                                 unsigned int channel, unsigned int filter)
 {
-    FilterParams *fp = &ctx->cur_channel_params[channel].filter_params[filter];
+    ChannelParams *cp = &ctx->cur_channel_params[channel];
+    FilterParams *fp = &cp->filter_params[filter];
 
     put_bits(pb, 4, fp->order);
 
@@ -989,7 +990,7 @@ static void write_filter_params(MLPEncodeContext *ctx, PutBitContext *pb,
         put_bits(pb, 3, fp->coeff_shift);
 
         for (i = 0; i < fp->order; i++) {
-            put_sbits(pb, fp->coeff_bits, fp->coeff[i] >> fp->coeff_shift);
+            put_sbits(pb, fp->coeff_bits, cp->coeff[filter][i] >> fp->coeff_shift);
         }
 
         /* TODO state data for IIR filter. */
