@@ -375,8 +375,12 @@ static int compare_decoding_params(MLPEncodeContext *ctx)
     return retval;
 }
 
-static void copy_filter_params(FilterParams *dst, FilterParams *src)
+static void copy_filter_params(MLPEncodeContext *ctx, ChannelParams *dst_cp,
+                               unsigned int ch, unsigned int filter)
 {
+    ChannelParams *src_cp = &ctx->cur_channel_params[ch];
+    FilterParams *dst = &dst_cp->filter_params[filter];
+    FilterParams *src = &src_cp->filter_params[filter];
     dst->order = src->order;
 
     if (dst->order) {
@@ -388,7 +392,7 @@ static void copy_filter_params(FilterParams *dst, FilterParams *src)
         dst->coeff_bits = src->coeff_bits;
 
         for (order = 0; order < dst->order; order++)
-            dst->coeff[order] = src->coeff[order];
+            dst_cp->coeff[filter][order] = src_cp->coeff[filter][order];
     }
 }
 
@@ -435,7 +439,7 @@ static void copy_restart_frame_params(MLPEncodeContext *ctx,
 
             if (index)
                 for (filter = 0; filter < NUM_FILTERS; filter++)
-                    copy_filter_params(&cp->filter_params[filter], &ctx->cur_channel_params[channel].filter_params[filter]);
+                    copy_filter_params(ctx, cp, channel, filter);
         }
     }
 }
