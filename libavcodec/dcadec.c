@@ -455,6 +455,16 @@ typedef struct {
     int8_t xxch_order_tab[32];
     int8_t lfe_index;
 
+    /* XLL extension information */
+    int xll_ch_sets;            ///< number of channel sets per frame
+    int xll_segments;           ///< number of segments per frame
+    int xll_smp_in_seg;         ///< samples in segment per one frequency band for the first channel set
+    int xll_bits4seg_size;      ///< number of bits used to read segment size
+    int xll_banddata_crcen;     ///< presence of CRC16 within each frequency band
+    int xll_scalable_lsb;
+    int xll_bits4ch_mask;       ///< channel position mask
+    int xll_fixed_lsb_width;
+
     /* ExSS header parser */
     int static_fields;          ///< static fields present
     int mix_metadata;           ///< mixing metadata present
@@ -1940,6 +1950,41 @@ static int dca_xxch_decode_frame(DCAContext *s)
     return 0;
 }
 
+/* parse initial header for XLL */
+static int dca_xll_decode_frame(DCAContext *s)
+{
+    int hdr_pos, hdr_size, version, frame_size;
+    int i;
+
+    av_log(s->avctx, AV_LOG_DEBUG, "DTS-XLL: decoding XLL extension\n");
+
+    /* get bit position of sync header */
+    hdr_pos = get_bits_count(&s->gb) - 32;
+
+    version = get_bits(&s->gb, 4) + 1;
+    hdr_size = get_bits(&s->gb, 8) + 1;
+
+    frame_size = get_bits_long(&s->gb, get_bits(&s->gb, 5) + 1) + 1;
+
+    s->xll_ch_sets = get_bits(&s->gb, 4) + 1;
+    s->xll_segments = 1 << get_bits(&s->gb, 4);
+    s->xll_smp_in_seg = 1 << get_bits(&s->gb, 4);
+    s->xll_bits4seg_size = get_bits(&s->gb, 5) + 1;
+    s->xll_banddata_crcen = get_bits(&s->gb, 2);
+    s->xll_scalable_lsb = get_bits1(&s->gb);
+    s->xll_bits4ch_mask = get_bits(&s->gb, 5) + 1;
+
+    if (s->xll_scalable_lsb)
+        s->xll_fixed_lsb_width = get_bits(&s->gb, 4);
+
+    /* skip to the end of the common header */
+    i = get_bits_count(&s->gb);
+    if (hdr_pos + hdr_size * 8 > i)
+        skip_bits_long(&s->gb, hdr_pos + hdr_size * 8 - i);
+
+    return 0;
+}
+
 /**
  * Parse extension substream header (HD)
  */
@@ -2042,6 +2087,8 @@ static void dca_exss_parse_header(DCAContext *s)
             } else if (mkr == 0x47004a03) {
                 dca_xxch_decode_frame(s);
                 s->core_ext_mask |= DCA_EXT_XXCH; /* xxx use for chan reordering */
+            } else if (mkr == 0x41a29547) {
+                dca_xll_decode_frame(s);
             } else {
                 av_log(s->avctx, AV_LOG_DEBUG,
                        "DTS-ExSS: unknown marker = 0x%08x\n", mkr);
