@@ -346,6 +346,18 @@ static av_always_inline int get_bitalloc(GetBitContext *gb, BitAlloc *ba,
            ba->offset;
 }
 
+typedef struct XllChSetSubHeader {
+    int channels;               ///< number of channels in channel set
+    int residual_encode;        ///< residual channel encoding
+    int bit_resolution;         ///< input sample bit-width
+    int bit_width;              ///< original input sample bit-width
+    int sampling_frequency;     ///< sampling frequency
+    int fs_interpolate;         ///< sampling frequency interpolation multiplier
+    int replacement_set;        ///< replacement channel set group
+    int active_replace_set;     ///< current channel set is active channel set
+    int primary_ch_set;
+} XllChSetSubHeader;
+
 typedef struct {
     AVCodecContext *avctx;
     AVFrame frame;
@@ -456,7 +468,7 @@ typedef struct {
     int8_t lfe_index;
 
     /* XLL extension information */
-    int xll_ch_sets;            ///< number of channel sets per frame
+    int xll_nch_sets;           ///< number of channel sets per frame
     int xll_segments;           ///< number of segments per frame
     int xll_smp_in_seg;         ///< samples in segment per one frequency band for the first channel set
     int xll_bits4seg_size;      ///< number of bits used to read segment size
@@ -464,6 +476,7 @@ typedef struct {
     int xll_scalable_lsb;
     int xll_bits4ch_mask;       ///< channel position mask
     int xll_fixed_lsb_width;
+    XllChSetSubHeader xll_chsets[16];
 
     /* ExSS header parser */
     int static_fields;          ///< static fields present
@@ -472,6 +485,7 @@ typedef struct {
     int mix_config_num_ch[4];   ///< number of channels in each mix out configuration
 
     int profile;
+    int one2one_map_chtospkr;
 
     int debug_flag;             ///< used for suppressing repeated error messages output
     AVFloatDSPContext fdsp;
@@ -1626,7 +1640,8 @@ static int dca_exss_parse_asset_header(DCAContext *s)
         skip_bits(&s->gb, 4); // max sample rate code
         channels = get_bits(&s->gb, 8) + 1;
 
-        if (get_bits1(&s->gb)) { // 1-to-1 channels to speakers
+        s->one2one_map_chtospkr = get_bits1(&s->gb);
+        if (s->one2one_map_chtospkr) {
             int spkr_remap_sets;
             int spkr_mask_size = 16;
             int num_spkrs[7];
@@ -1954,7 +1969,7 @@ static int dca_xxch_decode_frame(DCAContext *s)
 static int dca_xll_decode_frame(DCAContext *s)
 {
     int hdr_pos, hdr_size, version, frame_size;
-    int i;
+    int i, chset;
 
     av_log(s->avctx, AV_LOG_DEBUG, "DTS-XLL: decoding XLL extension\n");
 
@@ -1966,7 +1981,7 @@ static int dca_xll_decode_frame(DCAContext *s)
 
     frame_size = get_bits_long(&s->gb, get_bits(&s->gb, 5) + 1) + 1;
 
-    s->xll_ch_sets = get_bits(&s->gb, 4) + 1;
+    s->xll_nch_sets = get_bits(&s->gb, 4) + 1;
     s->xll_segments = 1 << get_bits(&s->gb, 4);
     s->xll_smp_in_seg = 1 << get_bits(&s->gb, 4);
     s->xll_bits4seg_size = get_bits(&s->gb, 5) + 1;
@@ -1981,6 +1996,27 @@ static int dca_xll_decode_frame(DCAContext *s)
     i = get_bits_count(&s->gb);
     if (hdr_pos + hdr_size * 8 > i)
         skip_bits_long(&s->gb, hdr_pos + hdr_size * 8 - i);
+
+    for (chset = 0; chset < s->xll_nch_sets; chset++) {
+        hdr_pos  = get_bits_count(&s->gb);
+        hdr_size = get_bits(&s->gb, 10) + 1;
+
+        s->xll_chsets[chset].channels = get_bits(&s->gb, 4) + 1;
+        s->xll_chsets[chset].residual_encode = get_bits(&s->gb, s->xll_chsets[chset].channels);
+        s->xll_chsets[chset].bit_resolution = get_bits(&s->gb, 5) + 1;
+        s->xll_chsets[chset].bit_width = get_bits(&s->gb, 5) + 1;
+        s->xll_chsets[chset].sampling_frequency = dca_sampling_freqs[get_bits(&s->gb, 4)];
+        s->xll_chsets[chset].fs_interpolate = get_bits(&s->gb, 2);
+        s->xll_chsets[chset].replacement_set = get_bits(&s->gb, 2);
+        if (s->xll_chsets[chset].replacement_set)
+            s->xll_chsets[chset].active_replace_set = get_bits(&s->gb, 1);
+
+        if (s->one2one_map_chtospkr) {
+            s->xll_chsets[chset].primary_ch_set = get_bits(&s->gb, 1);
+        } else {
+            s->xll_chsets[chset].primary_ch_set = 1;
+        }
+    }
 
     return 0;
 }
