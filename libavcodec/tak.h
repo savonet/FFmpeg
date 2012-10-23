@@ -71,22 +71,28 @@
 #define TAK_SIZE_BITS            ( TAK_SIZE_SAMPLES_NUM_BITS     + \
                                    TAK_SIZE_FRAME_DURATION_BITS )
 
-#define TAK_FORMAT_BITS          ( TAK_FORMAT_DATA_TYPE_BITS     + \
+#define TAK_MIN_FORMAT_BITS      ( TAK_FORMAT_DATA_TYPE_BITS     + \
                                    TAK_FORMAT_SAMPLE_RATE_BITS   + \
                                    TAK_FORMAT_BPS_BITS           + \
-                                   TAK_FORMAT_CHANNEL_BITS + 1   + \
+                                   TAK_FORMAT_CHANNEL_BITS + 1 )
+
+#define TAK_MAX_FORMAT_BITS      ( TAK_MIN_FORMAT_BITS           + \
                                    TAK_FORMAT_VALID_BITS   + 1   + \
                                    TAK_FORMAT_CH_LAYOUT_BITS     * \
                                    TAK_MAX_CHANNELS )
 
-#define TAK_STREAMINFO_BITS      ( TAK_ENCODER_BITS              + \
+#define TAK_MIN_STREAMINFO_BITS  ( TAK_ENCODER_BITS              + \
                                    TAK_SIZE_BITS                 + \
-                                   TAK_FORMAT_BITS )
+                                   TAK_MIN_FORMAT_BITS )
+
+#define TAK_MAX_STREAMINFO_BITS  ( TAK_ENCODER_BITS              + \
+                                   TAK_SIZE_BITS                 + \
+                                   TAK_MAX_FORMAT_BITS )
 
 #define TAK_MAX_FRAME_HEADER_BITS  ( TAK_MIN_FRAME_HEADER_LAST_BITS + \
-                                     TAK_STREAMINFO_BITS + 31 )
+                                     TAK_MAX_STREAMINFO_BITS + 31 )
 
-#define TAK_STREAMINFO_BYTES        (( TAK_STREAMINFO_BITS + 7 ) / 8)
+#define TAK_MIN_STREAMINFO_BYTES    (( TAK_MIN_STREAMINFO_BITS + 7 ) / 8)
 #define TAK_MAX_FRAME_HEADER_BYTES  (( TAK_MAX_FRAME_HEADER_BITS + 7 ) / 8)
 #define TAK_MIN_FRAME_HEADER_BYTES  (( TAK_MIN_FRAME_HEADER_BITS + 7 ) / 8)
 
