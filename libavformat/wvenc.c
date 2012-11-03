@@ -19,10 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/intreadwrite.h"
 #include "avformat.h"
 #include "internal.h"
 #include "avio_internal.h"
 #include "apetag.h"
+
+#define WV_EXTRA_SIZE 12
+#define WV_END_BLOCK  0x1000
 
 typedef struct{
     uint32_t duration;
@@ -55,18 +59,53 @@ static int write_header(AVFormatContext *s)
 static int write_packet(AVFormatContext *s, AVPacket *pkt)
 {
     WVMuxContext *wc = s->priv_data;
+    AVIOContext *read_pb;
     AVIOContext *pb = s->pb;
+    uint32_t size, flags;
+    uint32_t left = pkt->size;
+    uint8_t *pos = pkt->data;
+
+    read_pb = avio_alloc_context(pkt->data, pkt->size, 0, NULL, NULL, NULL, NULL);
+    if (!read_pb)
+        return AVERROR(ENOMEM);
 
     wc->duration += pkt->duration;
     ffio_wfourcc(pb, "wvpk");
-    avio_wl32(pb, pkt->size + 12 + wc->off);
+    if (wc->off)
+        size = AV_RL32(pkt->data) - 12;
+    else
+        size = pkt->size;
+    if (size > left)
+        return AVERROR(EINVAL);
+    avio_wl32(pb, size + 12);
     avio_wl16(pb, 0x410);
     avio_w8(pb, 0);
     avio_w8(pb, 0);
     avio_wl32(pb, -1);
     avio_wl32(pb, pkt->pts);
-    avio_write(s->pb, pkt->data, pkt->size);
-    avio_flush(s->pb);
+    pos += wc->off;
+    flags = AV_RL32(pos + 4);
+    avio_write(pb, pos, size);
+    pos  += size;
+    left -= size;
+    while (!(flags & WV_END_BLOCK)) {
+        ffio_wfourcc(pb, "wvpk");
+        size = AV_RL32(pos);
+        av_log(s, AV_LOG_ERROR, "%d\n", size);
+        pos += 4;
+        avio_wl32(pb, size);
+        avio_wl16(pb, 0x410);
+        avio_w8(pb, 0);
+        avio_w8(pb, 0);
+        avio_wl32(pb, -1);
+        avio_wl32(pb, pkt->pts);
+        flags = AV_RL32(pos + 4);
+        avio_write(pb, pos, WV_EXTRA_SIZE);
+        pos += WV_EXTRA_SIZE;
+        avio_write(pb, pos, size - 24);
+        pos += size - 24;
+    }
+    avio_flush(pb);
 
     return 0;
 }
