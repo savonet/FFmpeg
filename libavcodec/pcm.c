@@ -326,6 +326,9 @@ static int pcm_decode_frame(AVCodecContext *avctx, void *data,
         /* we process 40-bit blocks per channel for LXF */
         samples_per_block = 2;
         sample_size       = 5;
+    } else if (avctx->codec_id == AV_CODEC_ID_PCM_S24PARIS) {
+        samples_per_block = 10;
+        sample_size       = 32;
     }
 
     if (sample_size == 0) {
@@ -535,6 +538,24 @@ static int pcm_decode_frame(AVCodecContext *avctx, void *data,
         }
         break;
     }
+    case AV_CODEC_ID_PCM_S24PARIS:
+    {
+        int i, j;
+        n /= avctx->channels;
+        for (i = 0; i < n; i++) {
+            for (c = 0; c < avctx->channels; c++) {
+                dst_int32_t = (int32_t *)s->frame.extended_data[c] + 10 * i;
+                for (j = 0; j < 10; j++) {
+                    *dst_int32_t++ = (src[2] << 24) |
+                                     (src[1] << 16) |
+                                     (src[0] <<  8);
+                    src += 3;
+                }
+                src += 2;
+            }
+        }
+        break;
+    }
     default:
         return -1;
     }
@@ -611,6 +632,7 @@ PCM_CODEC  (PCM_S16LE_PLANAR, AV_SAMPLE_FMT_S16P,pcm_s16le_planar, "PCM signed 1
 PCM_CODEC  (PCM_S24BE,        AV_SAMPLE_FMT_S32, pcm_s24be,        "PCM signed 24-bit big-endian");
 PCM_CODEC  (PCM_S24DAUD,      AV_SAMPLE_FMT_S16, pcm_s24daud,      "PCM D-Cinema audio signed 24-bit");
 PCM_CODEC  (PCM_S24LE,        AV_SAMPLE_FMT_S32, pcm_s24le,        "PCM signed 24-bit little-endian");
+PCM_DECODER(PCM_S24PARIS,     AV_SAMPLE_FMT_S32P,pcm_s24paris,     "PCM Paris signed 24-bit");
 PCM_CODEC  (PCM_S24LE_PLANAR, AV_SAMPLE_FMT_S32P,pcm_s24le_planar, "PCM signed 24-bit little-endian planar");
 PCM_CODEC  (PCM_S32BE,        AV_SAMPLE_FMT_S32, pcm_s32be,        "PCM signed 32-bit big-endian");
 PCM_CODEC  (PCM_S32LE,        AV_SAMPLE_FMT_S32, pcm_s32le,        "PCM signed 32-bit little-endian");

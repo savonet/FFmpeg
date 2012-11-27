@@ -1546,6 +1546,13 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("PCM signed 8-bit planar"),
         .props     = AV_CODEC_PROP_LOSSLESS,
     },
+    {
+        .id        = AV_CODEC_ID_PCM_S24PARIS,
+        .type      = AVMEDIA_TYPE_AUDIO,
+        .name      = "pcm_s24paris",
+        .long_name = NULL_IF_CONFIG_SMALL("PCM Paris signed 24-bit"),
+        .props     = AV_CODEC_PROP_LOSSLESS,
+    },
 
     /* various ADPCM codecs */
     {
