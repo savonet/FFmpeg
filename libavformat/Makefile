@@ -292,6 +292,7 @@ OBJS-$(CONFIG_PVA_DEMUXER)               += pva.o
 OBJS-$(CONFIG_PVF_DEMUXER)               += pvfdec.o pcm.o
 OBJS-$(CONFIG_QCP_DEMUXER)               += qcp.o
 OBJS-$(CONFIG_R3D_DEMUXER)               += r3d.o
+OBJS-$(CONFIG_RSD_DEMUXER)               += rsd.o
 OBJS-$(CONFIG_RAWVIDEO_DEMUXER)          += rawvideodec.o
 OBJS-$(CONFIG_RAWVIDEO_MUXER)            += rawenc.o
 OBJS-$(CONFIG_REALTEXT_DEMUXER)          += realtextdec.o
