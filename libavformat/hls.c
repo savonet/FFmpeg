@@ -835,6 +835,8 @@ static int parse_playlist(HLSContext *c, const char *url,
     struct segment **prev_segments = NULL;
     int prev_n_segments = 0;
     int64_t prev_start_seq_no = -1;
+    int64_t start_time_offset = 0;
+    int time_offset_flag = 0;
 
     if (is_http && !in && c->http_persistent && c->playlist_pb) {
         in = c->playlist_pb;
@@ -993,15 +995,11 @@ static int parse_playlist(HLSContext *c, const char *url,
 
         } else if (av_strstart(line, "#EXT-X-START:", &ptr)) {
             const char *time_offset_value = NULL;
-            ret = ensure_playlist(c, &pls, url);
-            if (ret < 0) {
-                goto fail;
-            }
             if (av_strstart(ptr, "TIME-OFFSET=", &time_offset_value)) {
                 double offset = strtod(time_offset_value, NULL) * AV_TIME_BASE;
                 if (offset >= -0x1p63 && offset < 0x1p63) {
-                    pls->start_time_offset = offset;
-                    pls->time_offset_flag = 1;
+                    start_time_offset = offset;
+                    time_offset_flag  = 1;
                 } else {
                     av_log(c->ctx, AV_LOG_WARNING, "TIME-OFFSET value is"
                                                     "invalid, it will be ignored");
@@ -1147,6 +1145,23 @@ static int parse_playlist(HLSContext *c, const char *url,
     }
     if (pls)
         pls->last_load_time = av_gettime_relative();
+
+    /* EXT-X-START is valid in both playlist types. In a Master Playlist,
+     * it is the default for Media Playlists that do not carry their own. */
+    if (time_offset_flag) {
+        if (pls) {
+            pls->start_time_offset = start_time_offset;
+            pls->time_offset_flag  = 1;
+        } else {
+            for (int i = 0; i < c->n_playlists; i++) {
+                struct playlist *p = c->playlists[i];
+                if (!p->time_offset_flag) {
+                    p->start_time_offset = start_time_offset;
+                    p->time_offset_flag  = 1;
+                }
+            }
+        }
+    }
 
 fail:
     av_free(new_url);
